@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual Environment
+.venv/
+venv/
+
+# VS Code
+.vscode/
+
+# Pytest
+.pytest_cache/
+pytest_tmp/
+
+# Uploads
+uploads/*
+!uploads/.gitkeep
+
+# ChromaDB
+vector_db/*
+!vector_db/.gitkeep
+
+# Environment
+.env
+
+# Logs
+*.log
