@@ -104,9 +104,9 @@ AI-Code-Review-Agent/
 ## Clone Repository
 
 ```bash
-git clone https://github.com/<your-username>/AI-Code-Review-Agent.git
+git clone https://github.com/<your-username>/AI-Code-Review---Security-Analysis-Agent.git
 
-cd AI-Code-Review-Agent
+cd AI-Code-Review---Security-Analysis-Agent
 ```
 
 ---
