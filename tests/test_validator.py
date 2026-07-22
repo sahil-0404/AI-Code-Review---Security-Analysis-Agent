@@ -75,8 +75,13 @@ def test_route_always_returns_analysis_for_invalid_source(monkeypatch):
     expected = {"summary": {}, "code_quality": [], "security": [], "remediation": [], "metrics": {}, "timeline": []}
     called = {}
 
-    def analyze(code, language, validation):
-        called.update({"code": code, "language": language, "validation": validation})
+    def analyze(code, language, validation, include_remediation=True):
+        called.update({
+            "code": code,
+            "language": language,
+            "validation": validation,
+            "include_remediation": include_remediation,
+        })
         return expected
 
     monkeypatch.setattr(routes.orchestrator, "analyze", analyze)
@@ -85,6 +90,27 @@ def test_route_always_returns_analysis_for_invalid_source(monkeypatch):
     assert response["validation"]["valid"] is False
     assert response["analysis"] == expected
     assert called["validation"]["valid"] is False
+
+
+def test_deferred_remediation_returns_fast_analysis(monkeypatch):
+    orchestrator = AgentOrchestrator()
+    monkeypatch.setattr(
+        orchestrator.remediation_agent,
+        "generate_fix",
+        lambda *_args: (_ for _ in ()).throw(AssertionError("remediation should be deferred")),
+    )
+    validation = validate_code("python", "def ok():\n    return 1\n")
+
+    analysis = orchestrator.analyze(
+        "def ok():\n    return 1\n",
+        "python",
+        validation,
+        include_remediation=False,
+    )
+
+    assert analysis["remediation"] == []
+    assert analysis["summary"]["remediation_pending"] is True
+    assert analysis["timeline"][-1]["status"] == "pending"
 
 
 def test_valid_source_keeps_existing_analysis_workflow(monkeypatch):
