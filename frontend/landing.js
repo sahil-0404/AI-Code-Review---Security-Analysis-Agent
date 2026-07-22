@@ -1,0 +1,19 @@
+const AUTH_KEY='ai-code-review-auth';
+const API_BASE='http://127.0.0.1:8000/api';
+const landing=document.querySelector('#landing-view');
+const login=document.querySelector('#login-view');
+const form=document.querySelector('#login-form');
+const error=document.querySelector('#login-error');
+let signupMode=false;
+
+function openLogin(){landing.classList.add('hidden');login.classList.remove('hidden');document.querySelector('#login-email').focus()}
+function signIn(user,remember=true){localStorage.setItem(AUTH_KEY,JSON.stringify({name:user.name, email:user.email, remember, loggedIn:true, time:Date.now()}));location.href='dashboard.html'}
+function setMode(isSignup){signupMode=isSignup;const heading=form.querySelector('h2');const description=form.querySelector('h2 + p');let nameField=document.querySelector('#signup-name');if(isSignup&&!nameField){nameField=document.createElement('label');nameField.id='signup-name';nameField.innerHTML='Full name<input id="signup-name-input" type="text" placeholder="Your name" minlength="2" maxlength="80" required>';document.querySelector('#login-email').closest('label').before(nameField)}if(nameField)nameField.classList.toggle('hidden',!isSignup);heading.textContent=isSignup?'Create your account':'Sign in';description.textContent=isSignup?'Create an account to save your secure review workspace.':'Access your enterprise code-security workspace.';form.querySelector('.cta').textContent=isSignup?'Create account →':'Sign in →';document.querySelector('#demo-login').classList.toggle('hidden',isSignup);document.querySelector('#guest-login').classList.toggle('hidden',isSignup);document.querySelector('#signup-toggle').textContent=isSignup?'Already have an account? Sign in':'New here? Create an account';error.textContent=''}
+async function request(path,payload){const response=await fetch(`${API_BASE}${path}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.detail||'Unable to complete request.');return data}
+
+document.querySelectorAll('[data-open-login]').forEach(button=>button.onclick=openLogin);
+document.querySelector('#back-to-landing').onclick=()=>{login.classList.add('hidden');landing.classList.remove('hidden')};
+const signupToggle=document.createElement('button');signupToggle.type='button';signupToggle.id='signup-toggle';signupToggle.textContent='New here? Create an account';document.querySelector('#guest-login').after(signupToggle);signupToggle.onclick=()=>setMode(!signupMode);
+document.querySelector('#demo-login').onclick=()=>{document.querySelector('#login-email').value='admin@demo.com';document.querySelector('#login-password').value='password';setMode(false);form.requestSubmit()};
+document.querySelector('#guest-login').onclick=()=>signIn({name:'Guest Analyst',email:'guest@local'},false);
+form.onsubmit=async event=>{event.preventDefault();error.textContent='';const email=document.querySelector('#login-email').value.trim();const password=document.querySelector('#login-password').value;const remember=document.querySelector('#remember-me').checked;const submit=form.querySelector('.cta');submit.disabled=true;submit.textContent=signupMode?'Creating account…':'Signing in…';try{if(signupMode){const name=document.querySelector('#signup-name-input').value.trim();const created=await request('/auth/signup',{name,email,password});signIn(created.user,remember)}else{if(email==='admin@demo.com'&&password==='password'){signIn({name:'Admin User',email},remember);return}const loggedIn=await request('/auth/login',{email,password});signIn(loggedIn.user,remember)}}catch(requestError){error.textContent=requestError.message}finally{submit.disabled=false;submit.textContent=signupMode?'Create account →':'Sign in →'}};
