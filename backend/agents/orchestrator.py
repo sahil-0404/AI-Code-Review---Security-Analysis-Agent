@@ -9,7 +9,13 @@ class AgentOrchestrator:
         self.security_agent = SecurityAgent()
         self.remediation_agent = RemediationAgent()
 
-    def analyze(self, code: str, language: str, validation: dict | None = None) -> dict:
+    def analyze(
+        self,
+        code: str,
+        language: str,
+        validation: dict | None = None,
+        include_remediation: bool = True,
+    ) -> dict:
         """Run source analysis whether or not the compiler accepted the program."""
         language = language.lower()
         validation = validation or {"valid": True}
@@ -36,8 +42,8 @@ class AgentOrchestrator:
             code_quality.insert(0, compiler_finding)
 
         findings = code_quality + security
-        remediation = self.remediation_agent.generate_fix(code, findings)
-        if static_only:
+        remediation = self.remediation_agent.generate_fix(code, findings) if include_remediation else []
+        if static_only and include_remediation:
             remediation.insert(0, self._compiler_remediation(code, validation))
 
         high = sum(item.get("severity") == "High" for item in findings)
@@ -60,6 +66,7 @@ class AgentOrchestrator:
                 "code_review_findings": len(code_quality),
                 "security_findings": len(security),
                 "ai_recommendations": len(remediation),
+                "remediation_pending": not include_remediation,
             },
             "metrics": {
                 "analysis_mode": mode,
@@ -68,12 +75,17 @@ class AgentOrchestrator:
                 "code_review_findings": len(code_quality),
                 "security_findings": len(security),
                 "ai_recommendations": len(remediation),
+                "remediation_pending": not include_remediation,
             },
             "timeline": [
                 {"stage": "Validation", "status": "completed", "detail": validation.get("message")},
                 {"stage": "Code Review", "status": "completed", "detail": "Static source analysis completed."},
                 {"stage": "Security Analysis", "status": "completed", "detail": "Static security pattern analysis completed."},
-                {"stage": "AI Remediation", "status": "completed", "detail": "Recommendations generated without executing source."},
+                {
+                    "stage": "AI Remediation",
+                    "status": "pending" if not include_remediation else "completed",
+                    "detail": "Recommendations are generating in the background." if not include_remediation else "Recommendations generated without executing source.",
+                },
             ],
         }
 

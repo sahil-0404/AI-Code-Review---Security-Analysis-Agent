@@ -1,4 +1,4 @@
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, Header, HTTPException, UploadFile
 
 from backend.agents.orchestrator import AgentOrchestrator
 from backend.models.auth_models import LoginRequest, SignupRequest
@@ -46,26 +46,52 @@ def status() -> dict:
     }
 
 
-def _validation_response(source: str, language: str, code: str) -> dict:
+def _validation_response(
+    source: str,
+    language: str,
+    code: str,
+    defer_remediation: bool = False,
+) -> dict:
     validation = validate_code(language, code)
     return {
         "source": source,
         "language": language.lower(),
         "validation": validation,
-        "analysis": orchestrator.analyze(code, language, validation),
+        "analysis": orchestrator.analyze(
+            code,
+            language,
+            validation,
+            include_remediation=not defer_remediation,
+        ),
     }
 
 
 @router.post("/validate/paste")
-def validate_pasted_code(payload: PasteCodeRequest) -> dict:
-    return _validation_response("paste", payload.language, payload.code)
+def validate_pasted_code(
+    payload: PasteCodeRequest,
+    x_defer_remediation: str | None = Header(default=None),
+) -> dict:
+    return _validation_response(
+        "paste",
+        payload.language,
+        payload.code,
+        defer_remediation=x_defer_remediation == "true",
+    )
 
 
 @router.post("/validate/upload")
-async def validate_uploaded_code(file: UploadFile = File(...)) -> dict:
+async def validate_uploaded_code(
+    file: UploadFile = File(...),
+    x_defer_remediation: str | None = Header(default=None),
+) -> dict:
     _, code = await save_upload(file)
     language = language_from_extension(get_file_extension(file.filename or ""))
-    return _validation_response("upload", language, code)
+    return _validation_response(
+        "upload",
+        language,
+        code,
+        defer_remediation=x_defer_remediation == "true",
+    )
 
 
 @router.get("/knowledge/search")
